@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Scanner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #121212;
+            color: #e0e0e0;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        h1 {
+            color: #4CAF50;
+        }
+        .log {
+            background-color: #1e1e1e;
+            border: 1px solid #333;
+            padding: 20px;
+            width: 80%;
+            height: 60vh;
+            overflow-y: scroll;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .active {
+            color: green;
+        }
+        .inactive {
+            color: red;
+        }
+        .open-port {
+            color: blue;
+        }
+        .closed-port {
+            color: gray;
+        }
+        .location, .organization {
+            color: yellow;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 20px 0;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .footer {
+            position: absolute;
+            bottom: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+    <h1>IP Scanner</h1>
+    <button onclick="startScan()">Start Scan</button>
+    <div class="log" id="log"></div>
+    <div class="footer">Winser2003</div>
+
+    <script>
+        async function getRandomIP() {
+            return `${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}.${Math.floor(Math.random() * 255) + 1}`;
+        }
+
+        async function isIPActive(ip) {
+            try {
+                const response = await fetch(`https://api.ipify.org?format=json`);
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function checkPort(ip, port) {
+            try {
+                const response = await fetch(`http://${ip}:${port}`);
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function getIPInfo(ip) {
+            try {
+                const response = await fetch(`https://ipinfo.io/${ip}/json`);
+                if (response.ok) {
+                    return await response.json();
+                } else {
+                    return null;
+                }
+            } catch (error) {
+                return null;
+            }
+        }
+
+        async function startScan() {
+            const logElement = document.getElementById('log');
+            const ports = [443, 21];
+
+            while (true) {
+                const ip = await getRandomIP();
+                const isActive = await isIPActive(ip);
+
+                if (!isActive) {
+                    logElement.innerHTML += `<span class="inactive">IP ${ip} is NOT ACTIVE</span><br>`;
+                    continue;
+                }
+
+                logElement.innerHTML += `<span class="active">IP ${ip} is ACTIVE</span><br>`;
+
+                const portChecks = ports.map(port => checkPort(ip, port).then(isPortOpen => {
+                    if (isPortOpen) {
+                        logElement.innerHTML += `<span class="open-port">     Port ${port} is OPEN on ${ip}</span><br>`;
+                    } else {
+                        logElement.innerHTML += `<span class="closed-port">     Port ${port} is CLOSED on ${ip}</span><br>`;
+                    }
+                }));
+
+                await Promise.all(portChecks);
+
+                const ipInfo = await getIPInfo(ip);
+                if (ipInfo) {
+                    const location = `${ipInfo.city || 'Unknown'}, ${ipInfo.region || 'Unknown'}, ${ipInfo.country || 'Unknown'}`;
+                    const org = ipInfo.org || 'Unknown';
+
+                    logElement.innerHTML += `<span class="location">      Location: ${location}</span><br>`;
+                    logElement.innerHTML += `<span class="organization">      Organization: ${org}</span><br>`;
+                }
+
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+        }
+    </script>
+</body>
+</html>
